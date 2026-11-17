@@ -10,5 +10,7 @@ npm-debug.log*
 # Node modules (nếu có cài sau này)
 node_modules/
 
-# Local env (nếu có)
+# Local env & Secret Config
+.env
 .env.local
+js/config.js
