@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Quản Trị Giải Cầu Lông CLB 2026</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            DEFAULT: '#15803d',
+                            hover: '#166534',
+                            light: '#f0fdf4',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Supabase JS CDN (v2) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <!-- Custom Style Sheet -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col antialiased">
+
+    <!-- Top Demo Mode Banner (Nếu đang xem thử) -->
+    <div id="demo-admin-banner" class="bg-emerald-50 text-emerald-900 border-b border-emerald-200 px-4 py-2 text-xs flex flex-col sm:flex-row items-center justify-between gap-1 font-medium">
+        <div class="flex items-center space-x-1.5">
+            <i class="fas fa-shield-halved text-green-700"></i>
+            <span><strong>Chế độ Xem Thử Ban Tổ Chức:</strong> Dữ liệu mẫu 16 VĐV đã sẵn sàng. Bạn có thể duyệt đơn, soi ảnh bill, chấm trình real và ghép cặp trực tiếp.</span>
+        </div>
+        <div class="flex items-center space-x-2">
+            <button onclick="localStorage.removeItem('tech_athletes_demo'); localStorage.removeItem('tech_tournament_pairs'); Admin.loadAllData(); Admin.showToast('Đã khôi phục dữ liệu mẫu ban đầu!');" class="underline hover:text-green-800 text-[11px] font-bold">
+                Khôi phục mẫu
+            </button>
+            <a href="index.html" class="px-2 py-0.5 bg-green-700 hover:bg-green-800 text-white font-bold rounded text-[11px] transition">
+                Sang Trang VĐV &rarr;
+            </a>
+        </div>
+    </div>
+
+    <!-- Dashboard Top Header -->
+    <header class="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200">
+        <div class="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
+            <div class="flex items-center space-x-2.5">
+                <a href="index.html" class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg text-xs transition flex items-center space-x-1" title="Về trang VĐV">
+                    <i class="fas fa-arrow-left"></i>
+                    <span class="hidden sm:inline">Trang VĐV</span>
+                </a>
+                <div>
+                    <h1 class="text-sm font-bold text-slate-900 flex items-center leading-none">
+                        <i class="fas fa-shield-alt text-green-700 mr-1.5"></i>
+                        <span>Quản Trị Ban Tổ Chức</span>
+                    </h1>
+                    <span class="text-[10px] text-slate-500">Giải Cầu Lông CLB 2026</span>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-2">
+                <div class="flex items-center space-x-1.5 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200 text-xs">
+                    <span class="w-2 h-2 rounded-full bg-green-600 animate-pulse"></span>
+                    <span id="admin-user-name" class="font-bold text-slate-700 max-w-[140px] truncate">Admin BTC</span>
+                </div>
+                <button onclick="Auth.signOut()" class="p-1.5 text-slate-400 hover:text-red-600 rounded-lg transition text-xs" title="Đăng xuất">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Workspace (max-w-5xl) -->
+    <main class="flex-grow max-w-5xl w-full mx-auto px-4 py-5 space-y-5">
+
+        <!-- KPI Mini Stats Grid -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+            <div class="app-card p-3">
+                <span class="text-[10px] text-slate-500 uppercase block font-semibold">Tổng Đăng Ký</span>
+                <strong id="kpi-total" class="text-xl font-bold text-slate-900 font-mono block mt-0.5">0</strong>
+            </div>
+
+            <div class="app-card p-3 border-amber-200 bg-amber-50/40">
+                <span class="text-[10px] text-amber-700 uppercase block font-semibold">Chờ Duyệt Mới</span>
+                <strong id="kpi-pending" class="text-xl font-bold text-amber-700 font-mono block mt-0.5">0</strong>
+            </div>
+
+            <div class="app-card p-3 border-green-200 bg-green-50/40">
+                <span class="text-[10px] text-green-800 uppercase block font-semibold">Đã Phê Duyệt</span>
+                <strong id="kpi-approved" class="text-xl font-bold text-green-700 font-mono block mt-0.5">0</strong>
+            </div>
+
+            <div class="app-card p-3 border-sky-200 bg-sky-50/40">
+                <span class="text-[10px] text-sky-800 uppercase block font-semibold">Đã Chấm Trình</span>
+                <strong id="kpi-ranked" class="text-xl font-bold text-sky-700 font-mono block mt-0.5">0</strong>
+            </div>
+        </div>
+
+        <!-- Tab Buttons (Dạng trượt ngang mượt mà trên mobile) -->
+        <div class="flex items-center space-x-1.5 border-b border-slate-200 pb-2 overflow-x-auto text-xs font-bold">
+            <button onclick="Admin.switchTab('tab-approvals')" id="btn-tab-approvals" class="admin-tab-btn active px-3.5 py-2 rounded-xl bg-green-700 text-white flex items-center space-x-1.5 whitespace-nowrap shadow-sm">
+                <i class="fas fa-clipboard-check"></i>
+                <span>1. Duyệt Đơn & Soi Bill</span>
+                <span id="badge-pending-count" class="px-1.5 py-0.2 rounded-full bg-amber-400 text-slate-900 font-black text-[10px] font-mono hidden">0</span>
+            </button>
+
+            <button onclick="Admin.switchTab('tab-rating')" id="btn-tab-rating" class="admin-tab-btn px-3.5 py-2 rounded-xl text-slate-600 hover:bg-slate-100 flex items-center space-x-1.5 whitespace-nowrap">
+                <i class="fas fa-ranking-star"></i>
+                <span>2. Chấm Trình Real</span>
+            </button>
+
+            <button onclick="Admin.switchTab('tab-pairing')" id="btn-tab-pairing" class="admin-tab-btn px-3.5 py-2 rounded-xl text-slate-600 hover:bg-slate-100 flex items-center space-x-1.5 whitespace-nowrap">
+                <i class="fas fa-shuffle"></i>
+                <span>3. Ghép Cặp Thông Minh</span>
+            </button>
+
+            <button onclick="Admin.switchTab('tab-export')" id="btn-tab-export" class="admin-tab-btn px-3.5 py-2 rounded-xl text-slate-600 hover:bg-slate-100 flex items-center space-x-1.5 whitespace-nowrap">
+                <i class="fas fa-file-excel"></i>
+                <span>4. Xuất Báo Cáo</span>
+            </button>
+        </div>
+
+        <!-- ================= TAB 1: DUYỆT ĐƠN & SOI BILL ================= -->
+        <div id="tab-approvals" class="admin-tab-content space-y-3">
+            
+            <!-- Filter Bar -->
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-2.5 bg-white p-2.5 rounded-xl border border-slate-200">
+                <select id="filter-approval-status" onchange="Admin.renderApprovalsTable()" class="w-full sm:w-auto text-xs py-1.5">
+                    <option value="">Tất cả trạng thái</option>
+                    <option value="pending_registration" selected>Chờ duyệt mới</option>
+                    <option value="approved">Đã phê duyệt</option>
+                    <option value="pending_withdraw">Yêu cầu xin rút đơn</option>
+                    <option value="rejected">Bị từ chối</option>
+                    <option value="withdrawn">Đã rút khỏi giải</option>
+                </select>
+
+                <div class="relative w-full sm:w-56">
+                    <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                    <input type="text" id="approval-search" oninput="Admin.renderApprovalsTable()" placeholder="Tìm theo tên..." class="pl-8 py-1.5 text-xs">
+                </div>
+            </div>
+
+            <!-- Mobile-first Approvals List -->
+            <div id="approvals-cards-list" class="space-y-2.5">
+                <!-- Rendered by Admin.js -->
+            </div>
+
+            <div id="approvals-empty" class="hidden py-10 text-center text-slate-400 text-xs app-card bg-white">
+                Không có đơn nào khớp với bộ lọc.
+            </div>
+
+        </div>
+
+        <!-- ================= TAB 2: CHẤM TRÌNH REAL ================= -->
+        <div id="tab-rating" class="admin-tab-content hidden space-y-3">
+            <div class="bg-white p-3 rounded-xl border border-slate-200 text-xs text-slate-600 flex items-start space-x-2">
+                <i class="fas fa-info-circle text-green-700 mt-0.5"></i>
+                <span>Sau buổi test trình ngoài sân, BTC chọn gán Trình Real cho từng VĐV. Hệ thống sẽ tự động lưu ngay lập tức.</span>
+            </div>
+
+            <div id="rating-cards-list" class="space-y-2.5">
+                <!-- Rendered by Admin.js -->
+            </div>
+        </div>
+
+        <!-- ================= TAB 3: GHÉP CẶP THÔNG MINH (TRỢ LỰC CHO BTC) ================= -->
+        <div id="tab-pairing" class="admin-tab-content hidden space-y-4">
+            
+            <!-- Hướng dẫn nguyên lý cân bằng điểm 5 sao -->
+            <div class="bg-white p-3.5 rounded-xl border border-slate-200 text-xs space-y-2">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-100">
+                    <div>
+                        <strong class="text-slate-900 text-sm flex items-center">
+                            <i class="fas fa-wand-magic-sparkles text-green-700 mr-1.5"></i>
+                            Trợ Lý Ghép Cặp Cân Bằng Điểm
+                        </strong>
+                        <p class="text-slate-500 text-[11px] mt-0.5">BTC tự tay ghép hoặc bấm gợi ý xếp mẫu nháp. Hệ thống tự động tính điểm và gợi ý đối tác lý tưởng.</p>
+                    </div>
+
+                    <!-- Actions Bar -->
+                    <div class="flex items-center space-x-2">
+                        <button onclick="Admin.runAutoSuggestDraft()" class="px-3 py-1.5 bg-green-700 hover:bg-green-800 text-white font-bold text-xs rounded-lg shadow-sm transition active:scale-95 flex items-center space-x-1" title="Xếp sẵn 1 phương án mẫu để BTC xem và chỉnh sửa">
+                            <i class="fas fa-bolt"></i>
+                            <span>Gợi Ý Xếp Mẫu</span>
+                        </button>
+                        <button onclick="Admin.resetAllPairs()" class="px-3 py-1.5 bg-white hover:bg-red-50 text-slate-600 hover:text-red-600 border border-slate-300 font-bold text-xs rounded-lg transition active:scale-95" title="Đưa toàn bộ VĐV về kho chưa ghép để tự ghép từ đầu">
+                            <i class="fas fa-rotate-left mr-1"></i>
+                            <span>Tách Hết</span>
+                        </button>
+                        <button onclick="Admin.publishPairs()" class="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs rounded-lg shadow-sm transition active:scale-95 flex items-center space-x-1" title="Đẩy kết quả ra trang chủ cho các VĐV xem">
+                            <i class="fas fa-bullhorn"></i>
+                            <span>Công Bố Ra Web</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Thước đo điểm chuẩn cân bằng -->
+                <div class="flex flex-wrap items-center gap-2 pt-1 text-[11px]">
+                    <span class="text-slate-500 font-semibold">Quy ước điểm:</span>
+                    <span class="rank-pill rank-pill-lv1">Lv1 = 4đ</span>
+                    <span class="rank-pill rank-pill-lv2">Lv2 = 3đ</span>
+                    <span class="rank-pill rank-pill-lv3">Lv3 = 2đ</span>
+                    <span class="rank-pill rank-pill-lv4">Lv4 = 1đ</span>
+                    <span class="mx-1 text-slate-300">|</span>
+                    <span class="px-2 py-0.5 rounded text-[11px] font-bold balance-tag-ideal">Chuẩn vàng: Tổng 5★ (Lv1+Lv4 = Lv2+Lv3)</span>
+                </div>
+            </div>
+
+            <!-- Sub-tabs chọn nội dung thi đấu -->
+            <div class="flex space-x-2 border-b border-slate-200 pb-2 text-xs font-bold">
+                <button onclick="Admin.switchPairingView('doi_nam')" id="btn-pair-men" class="px-3.5 py-1.5 rounded-lg bg-green-700 text-white flex items-center space-x-1.5">
+                    <i class="fas fa-mars"></i>
+                    <span>Đôi Nam (<span id="count-pair-men">0</span> cặp)</span>
+                </button>
+                <button onclick="Admin.switchPairingView('doi_nam_nu')" id="btn-pair-mixed" class="px-3.5 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 flex items-center space-x-1.5">
+                    <i class="fas fa-venus-mars"></i>
+                    <span>Đôi Nam Nữ (<span id="count-pair-mixed">0</span> cặp)</span>
+                </button>
+            </div>
+
+            <!-- Grid 2 Cột: Bên Trái = Kho VĐV Chưa Ghép | Bên Phải = Các Cặp Đã Ghép -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+                
+                <!-- CỘT 1 (lg:col-span-5): KHO VĐV CHỜ GHÉP -->
+                <div class="lg:col-span-5 space-y-3">
+                    <div class="flex items-center justify-between bg-white p-2.5 rounded-xl border border-slate-200">
+                        <div class="flex items-center space-x-1.5">
+                            <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                            <h3 class="text-xs font-bold text-slate-900">VĐV Chờ Ghép</h3>
+                            <span id="unpaired-count-badge" class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-mono font-bold text-[11px]">0</span>
+                        </div>
+
+                        <!-- Lọc theo rank -->
+                        <select id="filter-unpaired-rank" onchange="Admin.renderUnpairedPool()" class="text-[11px] py-1 px-2 border border-slate-300 rounded-lg bg-slate-50 font-semibold">
+                            <option value="">Tất cả Rank</option>
+                            <option value="Lv1">Lv1 (4đ)</option>
+                            <option value="Lv2">Lv2 (3đ)</option>
+                            <option value="Lv3">Lv3 (2đ)</option>
+                            <option value="Lv4">Lv4 (1đ)</option>
+                        </select>
+                    </div>
+
+                    <!-- Container danh sách VĐV chờ ghép -->
+                    <div id="unpaired-container" class="space-y-2 max-h-[600px] overflow-y-auto pr-1">
+                        <!-- Dynamic render by Admin.js -->
+                    </div>
+                </div>
+
+                <!-- CỘT 2 (lg:col-span-7): CÁC CẶP ĐẤU ĐÃ GHÉP -->
+                <div class="lg:col-span-7 space-y-3">
+                    <div class="flex items-center justify-between bg-white p-2.5 rounded-xl border border-slate-200">
+                        <div class="flex items-center space-x-1.5">
+                            <span class="w-2.5 h-2.5 rounded-full bg-green-600"></span>
+                            <h3 class="text-xs font-bold text-slate-900">Cặp Đấu Đã Ghép</h3>
+                            <span id="paired-count-badge" class="px-2 py-0.5 rounded-full bg-green-100 text-green-800 font-mono font-bold text-[11px]">0 cặp</span>
+                        </div>
+                        <span class="text-[11px] text-slate-400 font-medium">Bấm "Gỡ" để đưa về kho hoặc "Đổi" để hoán đổi</span>
+                    </div>
+
+                    <!-- Container các cặp đấu -->
+                    <div id="pairs-container" class="space-y-2.5 max-h-[600px] overflow-y-auto pr-1">
+                        <!-- Dynamic render by Admin.js -->
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- ================= TAB 4: XUẤT BÁO CÁO ================= -->
+        <div id="tab-export" class="admin-tab-content hidden space-y-4">
+            <div class="app-card p-6 text-center space-y-3 bg-white">
+                <div class="w-12 h-12 rounded-xl bg-green-100 text-green-700 flex items-center justify-center text-xl mx-auto">
+                    <i class="fas fa-file-excel"></i>
+                </div>
+                <h3 class="font-bold text-slate-900 text-sm">Xuất Dữ Liệu Thi Đấu (Excel / CSV)</h3>
+                <p class="text-xs text-slate-500 max-w-sm mx-auto">Tải file danh sách VĐV hoặc danh sách cặp đấu có dấu tiếng Việt UTF-8 chuẩn để in ấn điều hành giải.</p>
+
+                <div class="flex flex-col sm:flex-row justify-center gap-2.5 pt-2">
+                    <button onclick="Admin.exportAthletesCsv()" class="px-4 py-2.5 bg-green-700 hover:bg-green-800 text-white font-bold text-xs rounded-xl shadow transition flex items-center justify-center space-x-1.5">
+                        <i class="fas fa-users"></i>
+                        <span>Tải Danh Sách VĐV</span>
+                    </button>
+                    <button onclick="Admin.exportPairsCsv()" class="px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-bold text-xs rounded-xl shadow-sm transition flex items-center justify-center space-x-1.5">
+                        <i class="fas fa-table-cells"></i>
+                        <span>Tải Danh Sách Cặp Đấu</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- ================= MODAL 1: CHỌN ĐỐI TÁC THÔNG MINH ================= -->
+    <div id="modal-smart-pair" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+        <div class="app-card max-w-lg w-full bg-white shadow-2xl rounded-2xl overflow-hidden flex flex-col max-h-[85vh]">
+            <!-- Header Modal -->
+            <div class="p-4 bg-slate-900 text-white flex items-center justify-between">
+                <div>
+                    <h3 class="text-sm font-bold flex items-center">
+                        <i class="fas fa-wand-magic-sparkles text-amber-400 mr-2"></i>
+                        Gợi Ý Ghép Đối Tác Cân Bằng
+                    </h3>
+                    <p class="text-[11px] text-slate-300 mt-0.5">Hệ thống tính điểm và đề xuất người phù hợp nhất</p>
+                </div>
+                <button onclick="Admin.closeSmartPairModal()" class="text-slate-400 hover:text-white p-1 text-lg">&times;</button>
+            </div>
+
+            <!-- VĐV 1 đã chọn -->
+            <div class="p-3.5 bg-slate-50 border-b border-slate-200">
+                <span class="text-[10px] text-slate-500 uppercase font-bold block mb-1">VĐV đang chọn ghép:</span>
+                <div class="flex items-center justify-between bg-white p-2.5 rounded-xl border border-slate-200">
+                    <div class="flex items-center space-x-2">
+                        <div class="w-8 h-8 rounded-lg bg-green-700 text-white flex items-center justify-center font-bold text-xs">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <div>
+                            <strong id="smart-p1-name" class="text-sm text-slate-900 block leading-tight">Nguyễn Thành Nam</strong>
+                            <span id="smart-p1-sub" class="text-[11px] text-slate-500">Nam • 31 tuổi • 175cm</span>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <span id="smart-p1-rank" class="rank-pill rank-pill-lv1 font-bold text-xs">Lv1 (4đ)</span>
+                    </div>
+                </div>
+                <div class="mt-2 text-[11px] text-slate-600 flex items-center space-x-1.5" id="smart-pair-target-hint">
+                    <i class="fas fa-bullseye text-green-700"></i>
+                    <span>Mục tiêu lý tưởng: Ghép với đối tác <strong class="text-green-800">Lv4 (1đ)</strong> để đạt chuẩn vàng <strong>5★</strong>.</span>
+                </div>
+            </div>
+
+            <!-- Danh sách đối tác gợi ý -->
+            <div class="p-3.5 flex-1 overflow-y-auto space-y-2" id="smart-candidates-list">
+                <!-- Rendered by Admin.js -->
+            </div>
+
+            <!-- Footer Modal -->
+            <div class="p-3 bg-slate-50 border-t border-slate-200 flex justify-end">
+                <button onclick="Admin.closeSmartPairModal()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs rounded-xl transition">
+                    Đóng lại
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= MODAL 2: HOÁN ĐỔI VĐV (SWAP PLAYERS) ================= -->
+    <div id="modal-swap-players" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+        <div class="app-card max-w-md w-full bg-white shadow-2xl rounded-2xl overflow-hidden flex flex-col max-h-[85vh]">
+            <div class="p-4 bg-slate-900 text-white flex items-center justify-between">
+                <div>
+                    <h3 class="text-sm font-bold flex items-center">
+                        <i class="fas fa-shuffle text-green-400 mr-2"></i>
+                        Hoán Đổi VĐV Giữa Các Cặp
+                    </h3>
+                    <p class="text-[11px] text-slate-300 mt-0.5">Chọn 1 VĐV từ cặp khác để tráo đổi vị trí</p>
+                </div>
+                <button onclick="Admin.closeSwapModal()" class="text-slate-400 hover:text-white p-1 text-lg">&times;</button>
+            </div>
+
+            <div class="p-3.5 bg-slate-50 border-b border-slate-200 text-xs">
+                <span class="text-slate-500 block text-[10px] uppercase font-bold mb-1">VĐV bạn đang muốn đổi:</span>
+                <strong id="swap-source-name" class="text-sm text-slate-900 block">...</strong>
+                <span id="swap-source-info" class="text-slate-500 text-[11px]">...</span>
+            </div>
+
+            <div class="p-3.5 flex-1 overflow-y-auto space-y-2" id="swap-targets-list">
+                <!-- Rendered by Admin.js -->
+            </div>
+
+            <div class="p-3 bg-slate-50 border-t border-slate-200 flex justify-end">
+                <button onclick="Admin.closeSwapModal()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs rounded-xl transition">
+                    Hủy bỏ
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Từ Chối Đơn -->
+    <div id="modal-reject" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+        <div class="app-card p-5 max-w-sm w-full space-y-3 bg-white shadow-xl">
+            <h3 class="text-sm font-bold text-red-600 flex items-center">
+                <i class="fas fa-ban mr-1.5"></i> Từ Chối Đơn Đăng Ký
+            </h3>
+            <p class="text-xs text-slate-600">Nhập lý do từ chối đơn của <strong id="reject-athlete-name"></strong>:</p>
+            <textarea id="reject-reason-text" rows="3" placeholder="Ví dụ: Ảnh bill mờ; Không đúng số tiền..."></textarea>
+            
+            <div class="flex justify-end space-x-2 pt-1 text-xs">
+                <button onclick="Admin.closeRejectModal()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-700 font-bold">Hủy</button>
+                <button onclick="Admin.confirmReject()" class="px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded-lg text-white font-bold">Từ Chối</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Phóng To Bill -->
+    <div id="admin-lightbox-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+        <div class="relative max-w-sm w-full bg-white rounded-2xl p-4 shadow-xl">
+            <button onclick="document.getElementById('admin-lightbox-modal').classList.add('hidden')" class="absolute top-2 right-2 text-slate-400 hover:text-slate-700 p-2">
+                <i class="fas fa-times"></i>
+            </button>
+            <p class="text-xs font-bold text-slate-700 mb-2">Ảnh Bill Chuyển Khoản</p>
+            <img id="admin-lightbox-img" src="" alt="Bill" class="w-full rounded-xl border border-slate-200">
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/admin.js"></script>
+</body>
+</html>

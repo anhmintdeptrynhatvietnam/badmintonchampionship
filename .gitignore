@@ -1,0 +1,14 @@
+# OS generated files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+npm-debug.log*
+
+# Node modules (nếu có cài sau này)
+node_modules/
+
+# Local env (nếu có)
+.env.local
